@@ -4,6 +4,9 @@ import mongoose from 'mongoose';
 import bodyParser from 'body-parser';
 import path from 'path';
 import IntlWrapper from '../client/modules/Intl/IntlWrapper';
+import passport from 'passport';
+import flash from 'connect-flash';
+import session from 'express-session';
 
 // Webpack Requirements
 import webpack from 'webpack';
@@ -13,6 +16,8 @@ import webpackHotMiddleware from 'webpack-hot-middleware';
 
 // Initialize the Express App
 const app = new Express();
+
+require('./util/passport')(passport); // pass passport for configuration
 
 // Set Development modes checks
 const isDevMode = process.env.NODE_ENV === 'development' || false;
@@ -36,7 +41,6 @@ import Helmet from 'react-helmet';
 // Import required modules
 import routes from '../client/routes';
 import { fetchComponentData } from './util/fetchData';
-import posts from './routes/post.routes';
 import dummyData from './dummyData';
 import serverConfig from './config';
 
@@ -55,11 +59,20 @@ mongoose.connect(serverConfig.mongoURL, (error) => {
 });
 
 // Apply body Parser and server public assets and routes
+app.use(session({
+  secret: 'coachclientsess', // session secret
+  resave: true,
+  saveUninitialized: true
+}));
 app.use(compression());
 app.use(bodyParser.json({ limit: '20mb' }));
 app.use(bodyParser.urlencoded({ limit: '20mb', extended: false }));
 app.use(Express.static(path.resolve(__dirname, '../dist/client')));
-app.use('/api', posts);
+app.use(passport.initialize());
+app.use(passport.session()); // persistent login sessions
+app.use(flash()); // persistent login sessions
+
+require('./routes.js')(app, passport); // load our routes and pass in our app and fully configured passport
 
 // Render Initial HTML
 const renderFullPage = (html, initialState) => {

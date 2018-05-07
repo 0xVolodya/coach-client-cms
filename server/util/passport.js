@@ -18,8 +18,7 @@ module.exports = function(passport) {
       passwordField: 'password',
       passReqToCallback: true
     },
-    function(req, email, password, done) {
-      console.log(email)
+    function(req, email, password, cb) {
       if (email)
         email = email.toLowerCase();
 
@@ -27,10 +26,10 @@ module.exports = function(passport) {
         if (!req.user) {
           User.findOne({ 'local.email': email }, function(err, user) {
             if (err)
-              return done(err);
+              return cb(err);
 
             if (user) {
-              return done(null, false, req.flash(500, 'That email is already taken.'));
+              return cb(null, false, req.flash(500, 'That email is already taken.'));
             } else {
 
               var newUser = new User();
@@ -40,37 +39,56 @@ module.exports = function(passport) {
 
               newUser.save(function(err) {
                 if (err)
-                  return done(err);
+                  return cb(err);
 
-                return done(null, newUser);
+                return cb(null, newUser);
               });
             }
 
           });
         } else if (!req.user.local.email) {
-          User.findOne({ 'local.email': email }, function(err, user) {
+          User.fincb({ 'local.email': email }, function(err, user) {
             if (err)
-              return done(err);
+              return cb(err);
 
             if (user) {
-              return done(null, false, req.flash('loginMessage', 'That email is already taken.'));
+              return cb(null, false, req.flash(400, 'That email is already taken.'));
             } else {
               var user = req.user;
               user.local.email = email;
               user.local.password = user.generateHash(password);
               user.save(function(err) {
                 if (err)
-                  return done(err);
+                  return cb(err);
 
-                return done(null, user);
+                return cb(null, user);
               });
             }
           });
         } else {
-          return done(null, req.user);
+          return cb(null, req.user);
         }
 
       });
 
     }));
+
+  passport.use('local-login', new LocalStrategy({
+    usernameField: 'email',
+    passwordField: 'password',
+    passReqToCallback: true
+  }, function(req, email, password, cb) {
+    User.findOne({'local.email': email},function(err, user){
+      console.log('email')
+      console.log(email)
+      console.log(user)
+      if(err) return cb(null, false, req.flash(400, 'Error occurred in login'))
+
+      if(!user) return cb(null, false, req.flash(400, 'No user was found'))
+
+      if(user.validatePassword(password)) return cb(null, false, req.flash(400, 'Wrong password'))
+
+      return cb(null, user)
+    })
+  }));
 }
